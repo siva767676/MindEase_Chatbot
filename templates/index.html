@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Assistant & Mental Health Analyzer</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+  <link rel="icon" type="image/png" href="/static/favicon.ico">
+  <style>
+    body {
+      background-color: #0a2540;
+      background-image: url("/static/ChatGPT%20Image%20Apr%204,%202025,%2007_07_01%20PM.png");
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+      color: white;
+    }
+    .dark-overlay {
+      background-color: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .chat-container {
+      height: calc(100vh - 280px);
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- Navbar -->
+  <nav class="bg-black bg-opacity-80 shadow-lg">
+    <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-white">AI Assistant & Mental Health Analyzer</h1>
+      <div class="space-x-4">
+        <button onclick="switchTab('about', event)" class="tab-button px-4 py-2 rounded-lg bg-gray-600 text-white hover:bg-gray-700">About</button>
+        <button onclick="switchTab('chat', event)" class="tab-button px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Chatbot</button>
+        <button onclick="switchTab('mental-health', event)" class="tab-button px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">Mental Health Prediction</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto dark-overlay rounded-xl shadow-lg p-6">
+
+      <!-- About Tab -->
+      <div id="about-tab" class="tab-content active h-80 flex items-center justify-center">
+        <!-- Aesthetic background only -->
+      </div>
+
+      <!-- Chat Tab -->
+      <div id="chat-tab" class="tab-content">
+        <div class="rounded-lg p-4">
+          <div id="chat-messages" class="chat-container overflow-y-auto mb-4 space-y-4"></div>
+          <div class="flex space-x-4">
+            <input type="text" id="user-input" class="flex-1 p-2 border border-gray-600 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Type your message here...">
+            <button onclick="sendMessage()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mental Health Tab -->
+      <div id="mental-health-tab" class="tab-content">
+        <div class="rounded-lg p-4">
+          <h2 class="text-xl font-semibold mb-2 text-white">Mental Health Analysis</h2>
+          <textarea id="mental-health-input" class="w-full p-2 border border-gray-600 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" rows="4" placeholder="Describe your thoughts..."></textarea>
+          <button onclick="analyzeMentalHealth()" class="bg-green-600 text-white mt-4 px-6 py-2 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400">Analyze</button>
+          <div id="analysis-result" class="mt-4 hidden">
+            <h3 class="text-lg font-semibold mb-2 text-white">Result:</h3>
+            <div id="result-content" class="p-4 bg-gray-900 text-white rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function switchTab(tabName, event) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.getElementById(`${tabName}-tab`).classList.add('active');
+
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'bg-green-600', 'bg-gray-600');
+        btn.classList.add('bg-gray-700');
+      });
+
+      if (event) {
+        event.target.classList.remove('bg-gray-700');
+        event.target.classList.add(
+          tabName === 'chat' ? 'bg-blue-600' : 
+          tabName === 'mental-health' ? 'bg-green-600' : 'bg-gray-600'
+        );
+      }
+    }
+
+    function addMessage(message, isUser = false) {
+      const chatMessages = document.getElementById('chat-messages');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+      const messageBubble = document.createElement('div');
+      messageBubble.className = `max-w-[70%] p-3 rounded-lg ${
+        isUser ? 'bg-blue-600 text-white' : 'bg-gray-700 text-white'
+      }`;
+      messageBubble.textContent = message;
+      messageDiv.appendChild(messageBubble);
+      chatMessages.appendChild(messageDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const userInput = document.getElementById('user-input');
+      const message = userInput.value.trim();
+      if (!message) return;
+      addMessage(message, true);
+      userInput.value = '';
+
+      try {
+        const response = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message }),
+        });
+        const data = await response.json();
+        addMessage(data.response || 'Error from server.');
+      } catch {
+        addMessage('Error sending message.');
+      }
+    }
+
+    async function analyzeMentalHealth() {
+      const text = document.getElementById('mental-health-input').value.trim();
+      if (!text) return;
+
+      try {
+        const response = await fetch('/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          document.getElementById('result-content').innerHTML =
+            `<p class="font-semibold">Predicted State: <span class="text-green-400">${data.prediction}</span></p>`;
+        } else {
+          document.getElementById('result-content').innerHTML =
+            `<p class="text-red-400">${data.error || 'Error analyzing.'}</p>`;
+        }
+        document.getElementById('analysis-result').classList.remove('hidden');
+      } catch {
+        document.getElementById('result-content').innerHTML =
+          `<p class="text-red-400">Network error.</p>`;
+        document.getElementById('analysis-result').classList.remove('hidden');
+      }
+    }
+
+    document.getElementById('user-input')?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+  </script>
+</body>
+</html>
